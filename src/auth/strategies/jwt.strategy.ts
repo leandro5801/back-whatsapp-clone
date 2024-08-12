@@ -14,7 +14,7 @@ export class JwtStrategy extends PassportStrategy( Strategy ) {
         @InjectRepository( User )
         private readonly userRepository: Repository<User>,
 
-        configService: ConfigService
+         configService: ConfigService
     ) {
 
         super({
@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy( Strategy ) {
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
         });
     }
-
+ 
 
     async validate( payload: JwtPayload ): Promise<User> {
         

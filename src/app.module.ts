@@ -5,12 +5,13 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ServeStaticModule } from '@nestjs/serve-static';
 
-import { ProductsModule } from './products/products.module';
 import { CommonModule } from './common/common.module';
-import { SeedModule } from './seed/seed.module';
+
 import { FilesModule } from './files/files.module';
 import { AuthModule } from './auth/auth.module';
 import { MessagesWsModule } from './messages-ws/messages-ws.module';
+import { ConversationModule } from './conversation/conversation.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -27,8 +28,8 @@ import { MessagesWsModule } from './messages-ws/messages-ws.module';
       host: process.env.DB_HOST,
       port: +process.env.DB_PORT,
       database: process.env.DB_NAME,
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,      
+      username: "postgres",
+      password: "1234",      
       autoLoadEntities: true,
       synchronize: true,
     }),
@@ -37,17 +38,21 @@ import { MessagesWsModule } from './messages-ws/messages-ws.module';
       rootPath: join(__dirname,'..','public'), 
     }),
 
-    ProductsModule,
+    
 
     CommonModule,
 
-    SeedModule,
+    
 
     FilesModule,
 
     AuthModule,
 
     MessagesWsModule,
+
+    ConversationModule,
+
+    MessagesModule,
 
   ],
 })
