@@ -1,4 +1,5 @@
 import { Conversation } from 'src/conversation/entities/conversation.entity';
+import { Message } from 'src/messages/entities/message.entity';
 import {
   BeforeInsert,
   BeforeUpdate,
@@ -7,6 +8,7 @@ import {
   JoinColumn,
   JoinTable,
   ManyToMany,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -34,8 +36,13 @@ export class User {
   })
   isActive: boolean;
 
-  @ManyToMany(() => Conversation, (conversation) => conversation.members,{cascade:true})  
+  @ManyToMany(() => Conversation, (conversation) => conversation.members, {
+    cascade: true,
+  })
   conversations: Conversation[];
+
+  @OneToMany(() => Message, (message) => message.sender)
+  messages: Message[];
 
   @Column('text', {
     array: true,
@@ -43,17 +50,16 @@ export class User {
   })
   roles: string[];
 
-  @Column({default:""})
+  @Column({ default: '' })
   socketId: string;
 
-  /* @BeforeInsert()
-    checkFieldsBeforeInsert() {
-        
-    }
+  @BeforeInsert()
+  checkFieldsBeforeInsert() {
+    if (this.conversations === undefined) this.conversations = [];
+  }
 
-    @BeforeUpdate()
+  /* @BeforeUpdate()
     checkFieldsBeforeUpdate() {
         this.checkFieldsBeforeInsert();   
-    }
-*/
+    } */
 }

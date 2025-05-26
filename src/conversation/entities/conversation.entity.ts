@@ -32,8 +32,10 @@ export class Conversation {
       referencedColumnName: 'id',
     },
   })
-  members: User[];
+  members: User[]; // @TODO: add a check to ensure that the user is a member of the conversation
 
-  @OneToMany(() => Message, (message) => message.id, { cascade: true })
+  @OneToMany(() => Message, (message) => message.conversation, {
+    cascade: true,
+  })
   messages: Message[];
 }

@@ -12,20 +12,22 @@ import { NewMessageDto } from './dtos/new-message.dto';
 import { MessagesWsService } from './messages-ws.service';
 import { CreateMessageDto } from '../messages/dto/create-message.dto';
 import { Logger } from '@nestjs/common';
+import { Message } from 'src/messages/entities/message.entity';
+import { Conversation } from 'src/conversation/entities/conversation.entity';
+import { CreateConversationDto } from 'src/conversation/dto/create-conversation.dto';
 
 @WebSocketGateway({ cors: true })
 export class MessagesWsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer() wss: Server;
-  private readonly logger = new Logger(MessagesWsGateway.name)
+  private readonly logger = new Logger(MessagesWsGateway.name);
   constructor(
     private readonly messagesWsService: MessagesWsService,
     private readonly jwtService: JwtService,
-    
   ) {}
 
-  afterInit() {
+  /* afterInit() {
     this.wss.on('connection', (client: Socket) => {
       // Establece un intervalo para enviar un mensaje de "ping" cada 10 segundos
       let pingInterval = setInterval(() => {
@@ -36,9 +38,8 @@ export class MessagesWsGateway
       client.on('pong', () => {
         // Si el cliente responde con un "pong", se considera que está conectado
         clearInterval(pingInterval);
-        pingInterval = setInterval(() => {
-          client.emit('ping');
-        }, 10000);
+
+        pingInterval = setInterval(() => {}, 10000);
       });
 
       // Si el client no respond despots de 30 segundo, se consider que se ha disconnect
@@ -48,38 +49,47 @@ export class MessagesWsGateway
         this.handleDisconnect(client);
       });
     });
-  }
+  } */
   //!! Front
   /* socket.on('ping', () => {
     socket.emit('pong');
   });
    */
   async handleConnection(client: Socket) {
-    const token = client.handshake.auth 
-    let payload: JwtPayload;
-    
+    const token = client.handshake.auth;
     try {
-      payload = this.jwtService.verify(token.token);
-      
-      this.messagesWsService.handleUserConnection(client, payload.id, true);
-      this.logger.log(`User ${payload.id} connected`);
+      let payload = this.messagesWsService.returnPayload(token.token);
+
+      const connectedUsers = await this.messagesWsService.handleUserConnection(
+        client,
+        payload.id,
+        true,
+        this.logger,
+      );
+      this.wss.emit('connectedUsers', connectedUsers);
+      console.log(client.id);
     } catch (error) {
-      client.emit('invalid')
+      client.emit('invalid');
       client.disconnect();
       return;
     }
   }
 
-  handleDisconnect(client: Socket) {
+  async handleDisconnect(client: Socket) {
     try {
-      const token = client.handshake.headers.authentication as string;
-      let payload: JwtPayload;
-
-      payload = this.jwtService.verify(token);
-      this.messagesWsService.handleUserConnection(client, payload.id, false);
-      this.logger.error(`User ${payload.id} disconnected`)
+      const token = client.handshake.auth;
+      let payload = this.messagesWsService.returnPayload(token.token);
+      const connectedUsers = await this.messagesWsService.handleUserConnection(
+        client,
+        payload.id,
+        false,
+        this.logger,
+      );
+      this.wss.emit('connectedUsers', connectedUsers);
     } catch (error) {
-      client.disconnect()
+      console.log('es en el catch');
+
+      this.logger.error(`User ${client.id} disconnected`);
     }
   }
   @SubscribeMessage('join-conversation')
@@ -87,13 +97,34 @@ export class MessagesWsGateway
     this.messagesWsService.handleJoinConversation(
       client,
       conversationId,
-      this.logger
+      this.logger,
     );
   }
 
   @SubscribeMessage('send-message')
   async SendMessage(client: Socket, createMessageDto: CreateMessageDto) {
-    this.messagesWsService.handleSendMessage(client, createMessageDto);
+    this.messagesWsService.handleSendMessage(
+      client,
+      createMessageDto,
+      this.wss,
+    );
+  }
+  @SubscribeMessage('leave-conversation')
+  async LeaveConversation(client: Socket, conversationId: string) {
+    this.messagesWsService.handleLeaveConversation(client, conversationId);
+  }
+
+  @SubscribeMessage('update-message')
+  async UpdateMessage(client: Socket, message: Message) {
+    this.messagesWsService.handleUpdateMessage(client, message, this.wss);
+  }
+  @SubscribeMessage('addNewConversation')
+  async AddNewGroup(client: Socket, conversation: CreateConversationDto) {
+    this.messagesWsService.handleAddNewConversation(
+      client,
+      conversation,
+      this.wss,
+    );
   }
 
   /*   @SubscribeMessage('message-from-client')

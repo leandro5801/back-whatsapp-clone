@@ -1,10 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { ConversationService } from './conversation.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
-import { User } from 'src/auth/entities/user.entity';
+
 import { GetUser } from 'src/auth/decorators';
-import { ValidRoles } from 'src/auth/interfaces';
+import { Auth } from '../auth/decorators/auth.decorator';
+import { ValidRoles } from '../auth/interfaces/valid-roles';
+import { User } from 'src/auth/entities/user.entity';
 
 @Controller('conversation')
 export class ConversationController {
@@ -14,11 +24,17 @@ export class ConversationController {
   create(@Body() createConversationDto: CreateConversationDto) {
     return this.conversationService.create(createConversationDto);
   }
+  @Auth(ValidRoles.user)
   @Get('/username')
-  findByUser(@GetUser() user: string) {
+  findByUser(@GetUser() user: User) {
     return this.conversationService.findAllByUsername(user);
   }
 
+  @Auth(ValidRoles.user)
+  @Get('/not/username')
+  findContactsUser(@GetUser() user: User) {
+    return this.conversationService.findAllWithoutUsername(user);
+  }
 
   @Get()
   findAll() {
@@ -29,7 +45,10 @@ export class ConversationController {
     return this.conversationService.findOneById(id);
   }
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateConversationDto: UpdateConversationDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateConversationDto: UpdateConversationDto,
+  ) {
     return this.conversationService.update(id, updateConversationDto);
   }
   @Delete(':id')

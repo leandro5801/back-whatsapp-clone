@@ -1,9 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-  UseGuards,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { UpdateConversationDto } from './dto/update-conversation.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,18 +7,18 @@ import { In, Repository } from 'typeorm';
 import { User } from 'src/auth/entities/user.entity';
 import { Message } from 'src/messages/entities/message.entity';
 import { isUUID } from 'class-validator';
+import { MessagesService } from 'src/messages/messages.service';
 
 @Injectable()
 export class ConversationService {
-  @InjectRepository(Conversation)
-  private readonly repositoryConversation: Repository<Conversation>;
-
-  @InjectRepository(User)
-  private readonly repositoryUser: Repository<User>;
-
+  constructor(
+    @InjectRepository(Conversation)
+    private readonly repositoryConversation: Repository<Conversation>,
+    @InjectRepository(User)
+    private readonly repositoryUser: Repository<User>,
+  ) {}
   async create(createConversationDto: CreateConversationDto) {
     const { members } = createConversationDto;
-    console.log(members);
 
     if (members.length === 0)
       throw new BadRequestException(
@@ -32,38 +27,70 @@ export class ConversationService {
 
     // TODO Verify MEMBERS must be unique
 
-    const users = await this.getMembers(members);
-
+    await this.getMembers(members);
     const newConversation = this.repositoryConversation.create(
       createConversationDto,
     );
-    newConversation.members = users;
     return this.repositoryConversation.save(newConversation);
   }
 
   async findAll() {
     return await this.repositoryConversation.find();
   }
-  async findAllByUsername(id: string) {
-    try {
-      const user = await this.repositoryUser.findOneBy({id:id})
-      if (!user) throw new BadRequestException('User not found');
-      const conversations = await this.repositoryConversation.find({
-        where: { members: user },
-      });
-      console.log(conversations);
-      
-      if (conversations.length === 0) return conversations;
-      const conversations_user =  await Promise.all(
-        conversations.map(async (conversation: Conversation) => {
-          let result = await this.findOneById(conversation.id);
-          return result;
-        }),
-      );
-      return conversations_user;
-    } catch (error) {
-      throw new InternalServerErrorException('Error al buscar conversaciones por username', error);
-    }
+
+  async findAllContacts(user: User) {
+    const contactsWithoutUser = await this.repositoryConversation.find({
+      relations: ['members'],
+      where: {
+        name_conversation: '',
+        members: In[user.id],
+      },
+    });
+
+    return contactsWithoutUser;
+  }
+  async findAllByUsername(user: User) {
+    const conversations = await this.repositoryConversation.find({
+      where: { members: In[user.id] },
+      relations: ['members', 'messages'],
+    });
+
+    if (conversations.length === 0) return conversations;
+    const conversationsMapped = conversations.map((conversation) => {
+      const lastMessage = conversation.messages.sort((a, b) => {
+        conversation.members = conversation.members.filter(
+          (member) => member.id !== user.id,
+        );
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      })[0];
+
+      return {
+        ...conversation,
+        messages: lastMessage ? [lastMessage] : [],
+      };
+    });
+
+    return conversationsMapped;
+  }
+
+  async findAllWithoutUsername(user: User) {
+    const users = await this.repositoryUser.find();
+    const contactsWithoutUser = await this.findAllContacts(user);
+    /* console.log(contactsWithoutUser); */
+
+    const result = users.filter(
+      (userResult) =>
+        !contactsWithoutUser.some((contact) =>
+          contact.members.some((member) => member.id === userResult.id),
+        ),
+    );
+    /* for (const key of result) {
+      console.log(key);
+    } */
+
+    return result;
   }
 
   async findOneById(id: string) {
@@ -83,12 +110,12 @@ export class ConversationService {
     if (!conversation) {
       throw new BadRequestException('Conversation not found');
     }
-    const members = await this.getMembers(updateConversationDto.members);
+    let members: User[];
+    if (updateConversationDto.members)
+      members = await this.getMembers(updateConversationDto.members);
 
     conversation.members = members;
-    conversation.name_conversation = updateConversationDto.name_conversation
-      ? updateConversationDto.name_conversation
-      : conversation.name_conversation;
+    conversation.name_conversation = updateConversationDto.name_conversation;
 
     return this.repositoryConversation.save(conversation);
   }

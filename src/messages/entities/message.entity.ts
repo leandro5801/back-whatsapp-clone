@@ -1,24 +1,36 @@
-import { User } from "src/auth/entities/user.entity";
-import { Conversation } from "src/conversation/entities/conversation.entity";
-import { Column, Entity, JoinColumn, ManyToOne, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { User } from 'src/auth/entities/user.entity';
+import { Conversation } from 'src/conversation/entities/conversation.entity';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity()
 export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Conversation, (conversation) => conversation.id,)
+  @ManyToOne(() => Conversation, (conversation) => conversation.id, {
+    eager: true,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'conversation_id' })
   conversation: Conversation;
 
-  @Column({type:'text'})
+  @Column({ type: 'text' })
   message: string;
 
-  @ManyToOne(() => User, (user)=> user.id,) 
-  @JoinColumn({ name: 'sender_id' })
-  sender: User; 
-
+  @ManyToOne(() => User, (user) => user.messages, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'sender' })
+  sender: User;
 
   @Column('timestamp', { default: () => 'CURRENT_TIMESTAMP' })
   createdAt: Date;
+
+  @Column('boolean', { default: false })
+  isModified: boolean;
 }

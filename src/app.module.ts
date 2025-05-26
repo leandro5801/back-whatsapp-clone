@@ -12,6 +12,9 @@ import { AuthModule } from './auth/auth.module';
 import { MessagesWsModule } from './messages-ws/messages-ws.module';
 import { ConversationModule } from './conversation/conversation.module';
 import { MessagesModule } from './messages/messages.module';
+import { User } from './auth/entities/user.entity';
+import { Message } from './messages/entities/message.entity';
+import { Conversation } from './conversation/entities/conversation.entity';
 
 @Module({
   imports: [
@@ -28,21 +31,18 @@ import { MessagesModule } from './messages/messages.module';
       host: process.env.DB_HOST,
       port: +process.env.DB_PORT,
       database: process.env.DB_NAME,
-      username: "postgres",
-      password: "1234",      
+      username: 'postgres',
+      password: '1234',
+      entities: [User, Message, Conversation],
       autoLoadEntities: true,
       synchronize: true,
     }),
 
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname,'..','public'), 
+      rootPath: join(__dirname, '..', 'public'),
     }),
 
-    
-
     CommonModule,
-
-    
 
     FilesModule,
 
@@ -53,7 +53,6 @@ import { MessagesModule } from './messages/messages.module';
     ConversationModule,
 
     MessagesModule,
-
   ],
 })
 export class AppModule {}

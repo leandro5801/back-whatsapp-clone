@@ -15,7 +15,7 @@ import { User } from './entities/user.entity';
 import { LoginUserDto, CreateUserDto } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { isUUID } from 'class-validator';
-
+import * as moment from 'moment';
 @Injectable()
 export class AuthService {
   constructor(
@@ -28,14 +28,18 @@ export class AuthService {
   async create(createUserDto: CreateUserDto) {
     try {
       const { password, ...userData } = createUserDto;
+      console.log(password);
+      console.log(userData);
 
       const user = this.userRepository.create({
         ...userData,
         password: bcrypt.hashSync(password, 10),
       });
+      console.log(user);
 
       await this.userRepository.save(user);
       delete user.password;
+      console.log('Hasta awui bien');
 
       return {
         ...user,
@@ -48,6 +52,17 @@ export class AuthService {
   }
   async GetAllUsers() {
     return await this.userRepository.find();
+  }
+  getProfile(user: User): User {
+    return user;
+  }
+  getUser(user: User): string {
+    return user.fullName.split(' ')[0];
+  }
+  async getConnectedUser() {
+    const users = await this.GetAllUsers();
+    const connectedUsers = users.filter((user) => user.socketId);
+    return connectedUsers;
   }
 
   async login(loginUserDto: LoginUserDto) {
@@ -64,9 +79,14 @@ export class AuthService {
     if (!bcrypt.compareSync(password, user.password))
       throw new UnauthorizedException('Credentials are not valid (password)');
 
+    const token = this.getJwtToken({ id: user.id });
+    const expiresAt = moment().add(5, 'hour').unix() * 1000; // 1 hora    return {
+    console.log(expiresAt);
+
     return {
       ...user,
-      token: this.getJwtToken({ id: user.id }),
+      token: token,
+      expireIn: expiresAt,
     };
   }
 
@@ -96,7 +116,13 @@ export class AuthService {
   }
 
   private handleDBErrors(error: any): never {
-    if (error.code === '23505') throw new BadRequestException(error.detail);
+    console.log(error.detail);
+
+    if (error.code === '23505')
+      throw new BadRequestException({
+        message: error.detail,
+        alreadyExists: true,
+      });
 
     console.log(error);
 
